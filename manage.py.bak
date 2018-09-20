@@ -1,0 +1,56 @@
+from sanic import Sanic
+from sanic.response import json
+from sanic_jwt import Initialize
+from sanic_jwt.decorators import protected
+from functools import partial
+
+from app.sanic_redis import create_redis
+import 
+
+async def authenticate(request):
+    return dict(user_id='some_id')
+
+client = socket.socket(socket.AF_INET,socket.SOCK_STREAM)
+client.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+client.bind(("127.0.0.1", 9003))
+client.listen(10)
+
+def reader(client):
+    try:
+        data = client.recv(1024)
+        print(data, "data")
+    except Exception as e:
+        print("error", e)
+
+reader_p = partial(reader, client)
+
+redis = create_redis()
+app = Sanic()
+
+app.config.update({
+        "redis": redis
+    })
+
+@app.route("/hello")
+async def test(request):
+    return json({"hello": "world"})
+
+@app.route("/protected")
+@protected()
+async def protecteds(request):
+    return json({"protected": True})
+
+
+@app.websocket("/feed")
+async def feed(request, ws):
+    p = request.app.config.redis.pubsub()
+    p.subscribe("test-ch")
+    aa = 0
+    for message in p.listen():
+        print("message", message)
+        await ws.send("%s"%aa)
+        aa += 1
+
+
+Initialize(app, authenticate=authenticate)
+app.run(host="0.0.0.0")
